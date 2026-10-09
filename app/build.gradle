@@ -3,6 +3,9 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+def runNumber = System.getenv("GITHUB_RUN_NUMBER")
+def appVersionCode = runNumber ? runNumber.toInteger() : 1
+
 android {
     namespace 'com.nihalthakral.nihalhome'
     compileSdk 34
@@ -11,8 +14,8 @@ android {
         applicationId "com.nihalthakral.nihalhome"
         minSdk 21
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode appVersionCode
+        versionName "1.0.${appVersionCode}"
     }
 
     signingConfigs {
@@ -29,6 +32,7 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
