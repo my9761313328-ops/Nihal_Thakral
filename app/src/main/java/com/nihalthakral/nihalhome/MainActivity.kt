@@ -17,6 +17,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var adManager: AdManager
 
     @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +49,10 @@ class MainActivity : ComponentActivity() {
             builtInZoomControls = false
             displayZoomControls = false
         }
+
+        adManager = AdManager(this)
+        adManager.initialize()
+        webView.addJavascriptInterface(GameBridge(adManager), "AndroidAds")
 
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
@@ -82,6 +87,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        adManager.destroy()
         (webView.parent as? ViewGroup)?.removeView(webView)
         webView.stopLoading()
         webView.destroy()
