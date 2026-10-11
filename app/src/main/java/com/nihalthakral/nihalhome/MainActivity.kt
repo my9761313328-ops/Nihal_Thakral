@@ -67,8 +67,6 @@ class MainActivity : ComponentActivity() {
         } else {
             webView.restoreState(savedInstanceState)
         }
-
-        window.decorView.post { rewardedAds.start() }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -127,7 +125,7 @@ class MainActivity : ComponentActivity() {
     private inner class AdBridge {
         @JavascriptInterface
         fun showRewardedAd() {
-            runOnUiThread { rewardedAds.show() }
+            runOnUiThread { rewardedAds.loadAndShow() }
         }
     }
 
