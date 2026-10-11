@@ -83,7 +83,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         webView.onPause()
-        webView.pauseTimers()
+        if (!rewardedAds.isBusy) webView.pauseTimers()
         super.onPause()
     }
 
