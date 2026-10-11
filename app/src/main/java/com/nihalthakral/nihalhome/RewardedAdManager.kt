@@ -131,8 +131,8 @@ class RewardedAdManager(
     }
 
     companion object {
-        private const val APP_ID = "ca-app-pub-3940256099942544~3347511713"
-        private const val AD_UNIT_ID = "ca-app-pub-3940256099942544/5224354917"
+        private const val APP_ID = "ca-app-pub-5939817111566865~6465125511"
+        private const val AD_UNIT_ID = "ca-app-pub-5939817111566865/1834673417"
         private const val LOAD_TIMEOUT_MS = 15000L
         const val REASON_DISMISSED = "dismissed"
         const val REASON_FAILED = "failed"
