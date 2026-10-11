@@ -77,13 +77,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         webView.onResume()
-        webView.resumeTimers()
         flushAdResult()
     }
 
     override fun onPause() {
         webView.onPause()
-        if (!rewardedAds.isBusy) webView.pauseTimers()
         super.onPause()
     }
 
