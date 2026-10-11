@@ -158,6 +158,11 @@
             animation: none;
             transform: scale(0.95);
         }
+        .btn-continue:disabled {
+            animation: none;
+            opacity: 0.7;
+            cursor: default;
+        }
         @keyframes continueBeat {
             0% {
                 transform: scale(1);
@@ -1020,9 +1025,47 @@ restartBtn.addEventListener('click', (e) => {
     gameState = 'PLAYING';
 });
 
-function showRewardedAd(onReward) {
-    onReward();
+const CONTINUE_LABEL = 'Continue - 🎬 Watch Ad';
+let adPending = false;
+let adMessageTimer = null;
+
+function setContinueBusy(busy) {
+    adPending = busy;
+    continueBtn.disabled = busy;
+    continueBtn.textContent = busy ? 'Loading Ad...' : CONTINUE_LABEL;
 }
+
+function flashContinueMessage(text) {
+    continueBtn.textContent = text;
+    clearTimeout(adMessageTimer);
+    adMessageTimer = setTimeout(() => {
+        if (!adPending) continueBtn.textContent = CONTINUE_LABEL;
+    }, 2000);
+}
+
+function showRewardedAd(onReward) {
+    if (!window.AndroidAds) {
+        onReward();
+        return;
+    }
+    setContinueBusy(true);
+    try {
+        window.AndroidAds.showRewardedAd();
+    } catch (err) {
+        setContinueBusy(false);
+        flashContinueMessage('Ad not ready, try again');
+    }
+}
+
+window.onRewardedAdResult = function (result) {
+    if (!adPending) return;
+    setContinueBusy(false);
+    if (result === 'earned') {
+        if (gameState === 'GAMEOVER') continueGame();
+    } else if (result === 'unavailable' || result === 'failed') {
+        flashContinueMessage('Ad not ready, try again');
+    }
+};
 
 function overlapsPlayer(obs) {
     const p = 4;
