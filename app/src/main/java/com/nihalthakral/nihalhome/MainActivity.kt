@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -13,10 +14,13 @@ import androidx.activity.ComponentActivity
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var rewardedAds: RewardedAdManager
+    private var pendingAdResult: String? = null
 
     @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,11 +56,19 @@ class MainActivity : ComponentActivity() {
         webView.webViewClient = WebViewClient()
         webView.webChromeClient = WebChromeClient()
 
+        rewardedAds = RewardedAdManager(this, object : RewardedAdManager.Listener {
+            override fun onRewardEarned() = postAdResult(RESULT_EARNED)
+            override fun onNoReward(reason: String) = postAdResult(reason)
+        })
+        webView.addJavascriptInterface(AdBridge(), "AndroidAds")
+
         if (savedInstanceState == null) {
             webView.loadUrl(GAME_URL)
         } else {
             webView.restoreState(savedInstanceState)
         }
+
+        window.decorView.post { rewardedAds.start() }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -68,6 +80,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         webView.onResume()
         webView.resumeTimers()
+        flushAdResult()
     }
 
     override fun onPause() {
@@ -95,7 +108,31 @@ class MainActivity : ComponentActivity() {
         controller.hide(WindowInsetsCompat.Type.systemBars())
     }
 
+    private fun postAdResult(result: String) {
+        runOnUiThread {
+            pendingAdResult = result
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) flushAdResult()
+        }
+    }
+
+    private fun flushAdResult() {
+        val result = pendingAdResult ?: return
+        pendingAdResult = null
+        webView.evaluateJavascript(
+            "window.onRewardedAdResult && window.onRewardedAdResult('$result')",
+            null
+        )
+    }
+
+    private inner class AdBridge {
+        @JavascriptInterface
+        fun showRewardedAd() {
+            runOnUiThread { rewardedAds.show() }
+        }
+    }
+
     companion object {
         private const val GAME_URL = "file:///android_asset/game.html"
+        private const val RESULT_EARNED = "earned"
     }
 }
