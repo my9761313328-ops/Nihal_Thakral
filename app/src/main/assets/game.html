@@ -1111,6 +1111,9 @@ function clearObstaclesAhead() {
     skipSpawns = CLEARED_OBSTACLE_GROUPS - removedGroups;
 }
 
+let countdownStep = null;
+let countdownHeld = false;
+
 function runCountdown(onDone) {
     let n = COUNTDOWN_FROM;
     countdownEl.classList.add('active');
@@ -1119,6 +1122,7 @@ function runCountdown(onDone) {
         if (n === 0) {
             countdownEl.classList.remove('active', 'pop');
             countdownTimer = null;
+            countdownStep = null;
             onDone();
             return;
         }
@@ -1129,8 +1133,34 @@ function runCountdown(onDone) {
         n--;
         countdownTimer = setTimeout(step, 1000);
     };
+    countdownStep = step;
     step();
 }
+
+let audioHeldByHide = false;
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        if (actx && actx.state === 'running') {
+            audioHeldByHide = true;
+            actx.suspend();
+        }
+        if (countdownTimer) {
+            clearTimeout(countdownTimer);
+            countdownTimer = null;
+            countdownHeld = true;
+        }
+    } else {
+        if (audioHeldByHide && actx) {
+            audioHeldByHide = false;
+            actx.resume();
+        }
+        if (countdownHeld && countdownStep) {
+            countdownHeld = false;
+            countdownTimer = setTimeout(countdownStep, 600);
+        }
+    }
+});
 
 function continueGame() {
     if (gameState !== 'GAMEOVER') return;
