@@ -901,10 +901,6 @@ function triggerGameOver() {
     gameOverlay.classList.add('active');
 
     document.body.style.backgroundColor = GAMEOVER_AMBIENT_COLOR;
-
-    try {
-        if (window.AndroidAds && typeof window.AndroidAds.onGameOver === 'function') window.AndroidAds.onGameOver();
-    } catch (e) {}
 }
 
 function startGame() {
