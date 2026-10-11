@@ -8,12 +8,12 @@ def appVersionCode = runNumber ? runNumber.toInteger() : 1
 
 android {
     namespace 'com.nihalthakral.nihalhome'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.nihalthakral.nihalhome"
-        minSdk 21
-        targetSdk 34
+        minSdk 24
+        targetSdk 35
         versionCode appVersionCode
         versionName "1.0.${appVersionCode}"
     }
@@ -45,10 +45,12 @@ android {
 
     kotlinOptions {
         jvmTarget = '17'
+        freeCompilerArgs += ['-Xskip-metadata-version-check']
     }
 }
 
 dependencies {
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.activity:activity-ktx:1.9.0'
+    implementation 'com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.4.0'
 }
