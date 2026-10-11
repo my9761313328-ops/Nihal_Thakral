@@ -27,7 +27,11 @@ class RewardedAdManager(
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    @Volatile
     private var busy = false
+
+    val isBusy: Boolean
+        get() = busy
     private var attempt = 0
     @Volatile
     private var earned = false
