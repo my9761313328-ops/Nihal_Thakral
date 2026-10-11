@@ -965,6 +965,7 @@ const GAMEOVER_AMBIENT_COLOR = '#1c2c2a';
 
 function triggerGameOver() {
     gameState = 'GAMEOVER';
+    resetContinueButton();
     spawnCrashParticles(player.x + player.size / 2, player.y + player.size / 2);
 
     const isNewRecord = brokeRecordThisRun && score > 0;
@@ -1026,44 +1027,50 @@ restartBtn.addEventListener('click', (e) => {
 });
 
 const CONTINUE_LABEL = 'Continue - 🎬 Watch Ad';
+const RETRY_LABEL = 'Ad failed to load - Retry';
 let adPending = false;
-let adMessageTimer = null;
 
-function setContinueBusy(busy) {
-    adPending = busy;
-    continueBtn.disabled = busy;
-    continueBtn.textContent = busy ? 'Loading Ad...' : CONTINUE_LABEL;
+function resetContinueButton() {
+    adPending = false;
+    continueBtn.disabled = false;
+    continueBtn.textContent = CONTINUE_LABEL;
 }
 
-function flashContinueMessage(text) {
-    continueBtn.textContent = text;
-    clearTimeout(adMessageTimer);
-    adMessageTimer = setTimeout(() => {
-        if (!adPending) continueBtn.textContent = CONTINUE_LABEL;
-    }, 2000);
+function setContinueBusy() {
+    adPending = true;
+    continueBtn.disabled = true;
+    continueBtn.textContent = 'Loading Ad...';
 }
 
-function showRewardedAd(onReward) {
+function setContinueRetry() {
+    adPending = false;
+    continueBtn.disabled = false;
+    continueBtn.textContent = RETRY_LABEL;
+}
+
+function requestRewardedAd() {
+    if (adPending) return;
     if (!window.AndroidAds) {
-        onReward();
+        setContinueRetry();
         return;
     }
-    setContinueBusy(true);
+    setContinueBusy();
     try {
         window.AndroidAds.showRewardedAd();
     } catch (err) {
-        setContinueBusy(false);
-        flashContinueMessage('Ad not ready, try again');
+        setContinueRetry();
     }
 }
 
 window.onRewardedAdResult = function (result) {
     if (!adPending) return;
-    setContinueBusy(false);
     if (result === 'earned') {
+        resetContinueButton();
         if (gameState === 'GAMEOVER') continueGame();
-    } else if (result === 'unavailable' || result === 'failed') {
-        flashContinueMessage('Ad not ready, try again');
+    } else if (result === 'dismissed') {
+        resetContinueButton();
+    } else {
+        setContinueRetry();
     }
 };
 
@@ -1142,7 +1149,7 @@ function continueGame() {
 continueBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (gameState !== 'GAMEOVER') return;
-    showRewardedAd(continueGame);
+    requestRewardedAd();
 });
 
 const STEP = 1000 / 60;
