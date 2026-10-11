@@ -140,6 +140,49 @@
         #gameOverlay.new-record #gameOverTitle {
             color: #ffd452;
         }
+        .btn-continue {
+            margin-top: 24px;
+            padding: 14px 32px;
+            font-size: 17px;
+            font-weight: 800;
+            color: #ffffff;
+            background: linear-gradient(135deg, #34c759, #1fa24a);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+        .btn-continue:active { transform: scale(0.95); }
+        .btn-continue + .btn-restart {
+            margin-top: 14px;
+        }
+        #countdown {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 170px;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 6px 24px rgba(0,0,0,0.35);
+            z-index: 25;
+            pointer-events: none;
+            opacity: 0;
+        }
+        #countdown.active {
+            opacity: 1;
+        }
+        #countdown.pop {
+            animation: countdownPop 1s ease-out forwards;
+        }
+        @keyframes countdownPop {
+            0% { transform: scale(2.2); opacity: 0; }
+            25% { transform: scale(1); opacity: 1; }
+            80% { transform: scale(0.95); opacity: 1; }
+            100% { transform: scale(0.7); opacity: 0.2; }
+        }
 </style>
 </head>
 <body>
@@ -165,8 +208,11 @@
         <div id="gameOverEmoji" style="font-size: 40px; margin-bottom: 4px; display: none;">🏆</div>
         <h2 id="gameOverTitle" style="font-size: 34px; font-weight: 900; margin-bottom: 6px;">CRASHED!</h2>
         <p id="gameOverSubtitle" style="font-size: 16px; opacity: 0.85;">BEST SCORE: 0</p>
+        <button class="btn-continue" id="continueBtn">Continue - 🎬Watch Ad</button>
         <button class="btn-restart" id="restartBtn">RETRY</button>
     </div>
+
+    <div id="countdown"></div>
 
     <canvas id="c"></canvas>
 </div>
@@ -181,6 +227,8 @@ const startOverlay = document.getElementById('startOverlay');
 const highScoreEl = document.getElementById('highScore');
 const gameOverlay = document.getElementById('gameOverlay');
 const restartBtn = document.getElementById('restartBtn');
+const continueBtn = document.getElementById('continueBtn');
+const countdownEl = document.getElementById('countdown');
 const gameOverTitle = document.getElementById('gameOverTitle');
 const gameOverSubtitle = document.getElementById('gameOverSubtitle');
 const gameOverEmoji = document.getElementById('gameOverEmoji');
@@ -799,6 +847,10 @@ function drawParticles(alpha) {
 }
 
 let nextSpawn = 0;
+let skipSpawns = 0;
+let countdownTimer = null;
+const COUNTDOWN_FROM = 3;
+const CLEARED_OBSTACLE_GROUPS = 5;
 
 function scheduleNextSpawn() {
     const minGapFrames = JUMP_AIRTIME_FRAMES + 22;
@@ -810,7 +862,11 @@ function scheduleNextSpawn() {
 
 function updateObstacles() {
     if (frame >= nextSpawn) {
-        spawnObstacle();
+        if (skipSpawns > 0) {
+            skipSpawns--;
+        } else {
+            spawnObstacle();
+        }
         scheduleNextSpawn();
     }
 
@@ -870,6 +926,7 @@ function init() {
     for (let i = 0; i < particlePool.length; i++) particlePool[i].active = false;
     scoreEl.textContent = '0';
     lastPlaneSpawnFrame = -Infinity;
+    skipSpawns = 0;
     scheduleNextSpawn();
 }
 
@@ -935,6 +992,88 @@ restartBtn.addEventListener('click', (e) => {
     document.body.style.backgroundColor = theme.skyTop;
     init();
     gameState = 'PLAYING';
+});
+
+function showRewardedAd(onReward) {
+    onReward();
+}
+
+function overlapsPlayer(obs) {
+    const p = 4;
+    return (
+        player.x + p < obs.x + obs.w &&
+        player.x + player.size - p > obs.x &&
+        player.y + p < obs.y + obs.h &&
+        player.y + player.size - p > obs.y
+    );
+}
+
+function clearObstaclesAhead() {
+    const ahead = obstaclePool
+        .filter(o => o.active && o.x + o.w > player.x)
+        .sort((a, b) => a.x - b.x);
+
+    const hitXs = ahead.filter(overlapsPlayer).map(o => o.x);
+    for (let i = 0; i < ahead.length; i++) {
+        const o = ahead[i];
+        if (hitXs.some(hx => Math.abs(o.x - hx) <= 1)) o.active = false;
+    }
+
+    let removedGroups = 0;
+    let lastX = null;
+    for (let i = 0; i < ahead.length; i++) {
+        const o = ahead[i];
+        if (!o.active) continue;
+        if (lastX === null || Math.abs(o.x - lastX) > 1) {
+            if (removedGroups >= CLEARED_OBSTACLE_GROUPS) break;
+            removedGroups++;
+            lastX = o.x;
+        }
+        o.active = false;
+    }
+
+    skipSpawns = CLEARED_OBSTACLE_GROUPS - removedGroups;
+}
+
+function runCountdown(onDone) {
+    let n = COUNTDOWN_FROM;
+    countdownEl.classList.add('active');
+
+    const step = () => {
+        if (n === 0) {
+            countdownEl.classList.remove('active', 'pop');
+            countdownTimer = null;
+            onDone();
+            return;
+        }
+        countdownEl.textContent = n;
+        countdownEl.classList.remove('pop');
+        void countdownEl.offsetWidth;
+        countdownEl.classList.add('pop');
+        n--;
+        countdownTimer = setTimeout(step, 1000);
+    };
+    step();
+}
+
+function continueGame() {
+    if (gameState !== 'GAMEOVER') return;
+    gameState = 'COUNTDOWN';
+    gameOverlay.classList.remove('active');
+    document.body.style.backgroundColor = theme.skyTop;
+    for (let i = 0; i < particlePool.length; i++) particlePool[i].active = false;
+    clearObstaclesAhead();
+    runCountdown(() => {
+        accumulator = 0;
+        lastTime = performance.now();
+        gameState = 'PLAYING';
+    });
+}
+
+continueBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (gameState !== 'GAMEOVER') return;
+    showRewardedAd(continueGame);
 });
 
 const STEP = 1000 / 60;
