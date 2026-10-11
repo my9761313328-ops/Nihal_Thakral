@@ -152,8 +152,34 @@
             cursor: pointer;
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             transition: transform 0.1s;
+            animation: continueBeat 1.2s ease-in-out infinite;
         }
-        .btn-continue:active { transform: scale(0.95); }
+        .btn-continue:active {
+            animation: none;
+            transform: scale(0.95);
+        }
+        @keyframes continueBeat {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.3), 0 0 0 0 rgba(52, 199, 89, 0.7);
+            }
+            14% {
+                transform: scale(1.09);
+                box-shadow: 0 12px 28px rgba(0,0,0,0.35), 0 0 0 8px rgba(52, 199, 89, 0.35);
+            }
+            28% {
+                transform: scale(1);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.3), 0 0 0 14px rgba(52, 199, 89, 0);
+            }
+            42% {
+                transform: scale(1.06);
+                box-shadow: 0 11px 26px rgba(0,0,0,0.33), 0 0 0 6px rgba(52, 199, 89, 0.25);
+            }
+            70%, 100% {
+                transform: scale(1);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.3), 0 0 0 14px rgba(52, 199, 89, 0);
+            }
+        }
         .btn-continue + .btn-restart {
             margin-top: 14px;
         }
@@ -208,7 +234,7 @@
         <div id="gameOverEmoji" style="font-size: 40px; margin-bottom: 4px; display: none;">🏆</div>
         <h2 id="gameOverTitle" style="font-size: 34px; font-weight: 900; margin-bottom: 6px;">CRASHED!</h2>
         <p id="gameOverSubtitle" style="font-size: 16px; opacity: 0.85;">BEST SCORE: 0</p>
-        <button class="btn-continue" id="continueBtn">Continue - 🎬Watch Ad</button>
+        <button class="btn-continue" id="continueBtn">Continue - 🎬 Watch Ad</button>
         <button class="btn-restart" id="restartBtn">RETRY</button>
     </div>
 
