@@ -21,6 +21,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var webView: WebView
     private lateinit var rewardedAds: RewardedAdManager
     private var pendingAdResult: String? = null
+    private var fallbackAdShowing = false
 
     @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +60,10 @@ class MainActivity : ComponentActivity() {
         rewardedAds = RewardedAdManager(this, object : RewardedAdManager.Listener {
             override fun onRewardEarned() = postAdResult(RESULT_EARNED)
             override fun onNoReward(reason: String) = postAdResult(reason)
+            override fun onFallbackAdVisibility(showing: Boolean) {
+                fallbackAdShowing = showing
+                if (showing) webView.onPause() else webView.onResume()
+            }
         })
         webView.addJavascriptInterface(AdBridge(), "AndroidAds")
 
@@ -76,7 +81,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        webView.onResume()
+        if (!fallbackAdShowing) webView.onResume()
         flushAdResult()
     }
 
