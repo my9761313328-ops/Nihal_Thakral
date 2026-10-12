@@ -1,11 +1,11 @@
 package com.nihalthakral.nihalhome
 
-import android.app.Activity
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
+import androidx.activity.ComponentActivity
 import com.google.android.libraries.ads.mobile.sdk.MobileAds
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback
 import com.google.android.libraries.ads.mobile.sdk.common.AdRequest
@@ -16,13 +16,14 @@ import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAd
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAdEventCallback
 
 class RewardedAdManager(
-    private val activity: Activity,
+    private val activity: ComponentActivity,
     private val listener: Listener
 ) {
 
     interface Listener {
         fun onRewardEarned()
         fun onNoReward(reason: String)
+        fun onFallbackAdVisibility(showing: Boolean) {}
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -84,6 +85,10 @@ class RewardedAdManager(
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
                         mainHandler.post {
+                            if (token == attempt && busy && isNoFill(adError)) {
+                                showFallbackAd()
+                                return@post
+                            }
                             if (token == attempt && !requestReachedGoogle(adError)) {
                                 restoreStamp(previousStamp)
                             }
@@ -95,6 +100,29 @@ class RewardedAdManager(
         } catch (e: Exception) {
             restoreStamp(previousStamp)
             failAttempt(token)
+        }
+    }
+
+    private fun isNoFill(adError: LoadAdError): Boolean {
+        val label = adError.code.toString().uppercase().replace("_", "")
+        return label.contains("NOFILL")
+    }
+
+    private fun showFallbackAd() {
+        mainHandler.removeCallbacksAndMessages(null)
+        if (activity.isFinishing || activity.isDestroyed) {
+            busy = false
+            return
+        }
+        listener.onFallbackAdVisibility(true)
+        try {
+            FallbackAdPlayer(activity) { completed ->
+                listener.onFallbackAdVisibility(false)
+                mainHandler.post { finishAttempt(if (completed) null else REASON_FAILED) }
+            }.show()
+        } catch (e: Exception) {
+            listener.onFallbackAdVisibility(false)
+            finishAttempt(REASON_FAILED)
         }
     }
 
