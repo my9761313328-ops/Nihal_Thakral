@@ -125,6 +125,9 @@ class MainActivity : ComponentActivity() {
         fun showRewardedAd() {
             runOnUiThread { rewardedAds.loadAndShow() }
         }
+
+        @JavascriptInterface
+        fun getCooldownMs(): Long = rewardedAds.remainingCooldownMs()
     }
 
     companion object {
