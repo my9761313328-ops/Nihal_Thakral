@@ -188,6 +188,12 @@
         .btn-continue + .btn-restart {
             margin-top: 14px;
         }
+        .btn-continue.hidden {
+            display: none;
+        }
+        .btn-continue.hidden + .btn-restart {
+            margin-top: 24px;
+        }
         #countdown {
             position: absolute;
             inset: 0;
@@ -966,6 +972,7 @@ const GAMEOVER_AMBIENT_COLOR = '#1c2c2a';
 function triggerGameOver() {
     gameState = 'GAMEOVER';
     resetContinueButton();
+    refreshContinueVisibility();
     spawnCrashParticles(player.x + player.size / 2, player.y + player.size / 2);
 
     const isNewRecord = brokeRecordThisRun && score > 0;
@@ -1029,6 +1036,28 @@ restartBtn.addEventListener('click', (e) => {
 const CONTINUE_LABEL = 'Continue - 🎬 Watch Ad';
 const RETRY_LABEL = 'Ad failed to load - Retry';
 let adPending = false;
+let cooldownTimer = null;
+
+function getAdCooldownMs() {
+    if (!window.AndroidAds || !window.AndroidAds.getCooldownMs) return 0;
+    try {
+        return Number(window.AndroidAds.getCooldownMs()) || 0;
+    } catch (err) {
+        return 0;
+    }
+}
+
+function refreshContinueVisibility() {
+    clearTimeout(cooldownTimer);
+    cooldownTimer = null;
+    const remaining = getAdCooldownMs();
+    if (remaining > 0) {
+        continueBtn.classList.add('hidden');
+        cooldownTimer = setTimeout(refreshContinueVisibility, remaining + 100);
+    } else {
+        continueBtn.classList.remove('hidden');
+    }
+}
 
 function resetContinueButton() {
     adPending = false;
@@ -1066,11 +1095,14 @@ window.onRewardedAdResult = function (result) {
     if (!adPending) return;
     if (result === 'earned') {
         resetContinueButton();
+        refreshContinueVisibility();
         if (gameState === 'GAMEOVER') continueGame();
     } else if (result === 'dismissed') {
         resetContinueButton();
+        refreshContinueVisibility();
     } else {
         setContinueRetry();
+        refreshContinueVisibility();
     }
 };
 
@@ -1151,6 +1183,7 @@ document.addEventListener('visibilitychange', () => {
             countdownHeld = true;
         }
     } else {
+        refreshContinueVisibility();
         if (audioHeldByHide && actx) {
             audioHeldByHide = false;
             actx.resume();
