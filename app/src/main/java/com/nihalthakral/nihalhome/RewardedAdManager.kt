@@ -26,14 +26,31 @@ class RewardedAdManager(
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private var busy = false
     private var attempt = 0
     @Volatile
     private var earned = false
 
+    fun remainingCooldownMs(): Long {
+        val last = prefs.getLong(KEY_LAST_REQUEST, 0L)
+        if (last == 0L) return 0L
+        val now = System.currentTimeMillis()
+        val elapsed = now - last
+        if (elapsed < 0) {
+            prefs.edit().putLong(KEY_LAST_REQUEST, now).apply()
+            return COOLDOWN_MS
+        }
+        return (COOLDOWN_MS - elapsed).coerceAtLeast(0L)
+    }
+
     fun loadAndShow() {
         if (busy) return
+        if (remainingCooldownMs() > 0L) {
+            listener.onNoReward(REASON_COOLDOWN)
+            return
+        }
         if (!isOnline()) {
             listener.onNoReward(REASON_FAILED)
             return
@@ -55,6 +72,8 @@ class RewardedAdManager(
 
     private fun requestAd(token: Int) {
         if (token != attempt || !busy) return
+        val previousStamp = prefs.getLong(KEY_LAST_REQUEST, 0L)
+        prefs.edit().putLong(KEY_LAST_REQUEST, System.currentTimeMillis()).apply()
         try {
             RewardedAd.load(
                 AdRequest.Builder(AD_UNIT_ID).build(),
@@ -64,13 +83,28 @@ class RewardedAdManager(
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
-                        mainHandler.post { failAttempt(token) }
+                        mainHandler.post {
+                            if (token == attempt && !requestReachedGoogle(adError)) {
+                                restoreStamp(previousStamp)
+                            }
+                            failAttempt(token)
+                        }
                     }
                 }
             )
         } catch (e: Exception) {
+            restoreStamp(previousStamp)
             failAttempt(token)
         }
+    }
+
+    private fun requestReachedGoogle(adError: LoadAdError): Boolean {
+        val label = adError.code.toString().uppercase()
+        return !(label.contains("NETWORK") || label.contains("INTERNAL"))
+    }
+
+    private fun restoreStamp(previous: Long) {
+        prefs.edit().putLong(KEY_LAST_REQUEST, previous).apply()
     }
 
     private fun present(token: Int, ad: RewardedAd) {
@@ -134,6 +168,10 @@ class RewardedAdManager(
         private const val APP_ID = "ca-app-pub-5939817111566865~6465125511"
         private const val AD_UNIT_ID = "ca-app-pub-5939817111566865/1834673417"
         private const val LOAD_TIMEOUT_MS = 15000L
+        private const val COOLDOWN_MS = 65000L
+        private const val PREFS_NAME = "rewarded_ad_prefs"
+        private const val KEY_LAST_REQUEST = "last_request_at"
+        const val REASON_COOLDOWN = "cooldown"
         const val REASON_DISMISSED = "dismissed"
         const val REASON_FAILED = "failed"
 
