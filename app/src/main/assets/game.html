@@ -191,6 +191,10 @@
         .btn-continue.hidden {
             display: none;
         }
+        .btn-restart:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
         .btn-continue.hidden + .btn-restart {
             margin-top: 24px;
         }
@@ -1027,6 +1031,7 @@ document.addEventListener('pointerdown', (e) => {
 
 restartBtn.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (adPending) return;
     gameOverlay.classList.remove('active');
     document.body.style.backgroundColor = theme.skyTop;
     init();
@@ -1062,18 +1067,21 @@ function refreshContinueVisibility() {
 function resetContinueButton() {
     adPending = false;
     continueBtn.disabled = false;
+    restartBtn.disabled = false;
     continueBtn.textContent = CONTINUE_LABEL;
 }
 
 function setContinueBusy() {
     adPending = true;
     continueBtn.disabled = true;
+    restartBtn.disabled = true;
     continueBtn.textContent = 'Loading Ad...';
 }
 
 function setContinueRetry() {
     adPending = false;
     continueBtn.disabled = false;
+    restartBtn.disabled = false;
     continueBtn.textContent = RETRY_LABEL;
 }
 
