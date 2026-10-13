@@ -85,7 +85,10 @@ class MainActivity : ComponentActivity() {
                 if (showing) webView.onPause() else webView.onResume()
             }
         })
-        interstitialAds = InterstitialAdManager(this)
+        interstitialAds = InterstitialAdManager(this) { showing ->
+            fallbackAdShowing = showing
+            if (showing) webView.onPause() else webView.onResume()
+        }
         interstitialAds.preload()
         webView.addJavascriptInterface(AdBridge(), "AndroidAds")
 
@@ -152,6 +155,11 @@ class MainActivity : ComponentActivity() {
         @JavascriptInterface
         fun showRewardedAd() {
             runOnUiThread { rewardedAds.loadAndShow() }
+        }
+
+        @JavascriptInterface
+        fun preloadInterstitialAd() {
+            runOnUiThread { interstitialAds.preload() }
         }
 
         @JavascriptInterface
