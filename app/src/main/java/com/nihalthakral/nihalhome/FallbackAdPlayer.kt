@@ -46,6 +46,9 @@ class FallbackAdPlayer(
     private var finished = false
     private var stopped = false
     private var resumePosition = 0
+    private var closeVisible = false
+
+    private val closeReveal = Runnable { revealClose() }
 
     private val ticker = object : Runnable {
         override fun run() {
@@ -57,7 +60,7 @@ class FallbackAdPlayer(
 
     private val backCallback = object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-            if (completed) close()
+            if (closeVisible) close()
         }
     }
 
@@ -67,6 +70,7 @@ class FallbackAdPlayer(
             resumePosition = video.currentPosition
             video.stopPlayback()
             handler.removeCallbacks(ticker)
+            handler.removeCallbacks(closeReveal)
             stopped = true
         }
         if (event == Lifecycle.Event.ON_START && stopped) {
@@ -197,6 +201,10 @@ class FallbackAdPlayer(
             video.start()
             handler.removeCallbacks(ticker)
             handler.post(ticker)
+            if (!showReward && !closeVisible) {
+                handler.removeCallbacks(closeReveal)
+                handler.postDelayed(closeReveal, CLOSE_DELAY_MS)
+            }
         }
         video.setOnCompletionListener { onVideoCompleted() }
         video.setOnErrorListener { _, _, _ ->
@@ -224,6 +232,12 @@ class FallbackAdPlayer(
         handler.removeCallbacks(ticker)
         if (showReward) rewardText.text = "Reward granted"
         infoGroup.visibility = View.VISIBLE
+        revealClose()
+    }
+
+    private fun revealClose() {
+        if (finished || closeVisible) return
+        closeVisible = true
         closeButton.alpha = 0f
         closeButton.visibility = View.VISIBLE
         closeButton.animate().alpha(1f).setDuration(250L).start()
@@ -251,6 +265,10 @@ class FallbackAdPlayer(
             setColor(color)
             cornerRadius = dp(radiusDp).toFloat()
         }
+
+    private companion object {
+        const val CLOSE_DELAY_MS = 3000L
+    }
 
     private class CloseButton(context: Context) : View(context) {
         private val strokeWidthPx = 2f * context.resources.displayMetrics.density
