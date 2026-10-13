@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import androidx.activity.ComponentActivity
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback
 import com.google.android.libraries.ads.mobile.sdk.common.AdRequest
@@ -21,9 +22,15 @@ class InterstitialAdManager(
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var ad: InterstitialAd? = null
-    private var loading = false
-    private var destroyed = false
     private var fallbackShowing = false
+
+    @Volatile
+    private var loading = false
+
+    @Volatile
+    private var destroyed = false
+
+    @Volatile
     private var loadToken = 0
 
     @Volatile
@@ -49,8 +56,9 @@ class InterstitialAdManager(
         mainHandler.postDelayed(timeoutRunnable, LOAD_TIMEOUT_MS)
         Thread {
             try {
+                Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
                 AdsInitializer.ensure(activity)
-                mainHandler.post { request(token) }
+                request(token, true)
             } catch (e: Exception) {
                 mainHandler.post { finishLoad(token) }
             }
@@ -87,7 +95,7 @@ class InterstitialAdManager(
         mainHandler.removeCallbacks(timeoutRunnable)
     }
 
-    private fun request(token: Int) {
+    private fun request(token: Int, allowRetryOnMain: Boolean) {
         if (destroyed || token != loadToken || !loading) return
         try {
             InterstitialAd.load(
@@ -112,7 +120,11 @@ class InterstitialAdManager(
                 }
             )
         } catch (e: Exception) {
-            finishLoad(token)
+            if (allowRetryOnMain) {
+                mainHandler.post { request(token, false) }
+            } else {
+                mainHandler.post { finishLoad(token) }
+            }
         }
     }
 
