@@ -13,75 +13,112 @@ import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError
 import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd
 import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback
 
-class InterstitialAdManager(private val activity: ComponentActivity) {
+class InterstitialAdManager(
+    private val activity: ComponentActivity,
+    private val onFallbackVisibility: (Boolean) -> Unit
+) {
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var ad: InterstitialAd? = null
     private var loading = false
     private var destroyed = false
+    private var fallbackShowing = false
+    private var loadToken = 0
 
     @Volatile
     private var ready = false
+
+    @Volatile
+    private var fallbackReady = false
+
+    private val timeoutRunnable = Runnable {
+        if (loading) {
+            loading = false
+            loadToken++
+        }
+    }
 
     fun preload() {
         if (destroyed || loading || ad != null) return
         if (!isOnline()) return
         loading = true
+        fallbackReady = false
+        val token = ++loadToken
+        mainHandler.removeCallbacks(timeoutRunnable)
+        mainHandler.postDelayed(timeoutRunnable, LOAD_TIMEOUT_MS)
         Thread {
             try {
                 AdsInitializer.ensure(activity)
-                mainHandler.post { request() }
+                mainHandler.post { request(token) }
             } catch (e: Exception) {
-                mainHandler.post { loading = false }
+                mainHandler.post { finishLoad(token) }
             }
         }.start()
     }
 
     fun requestShow(): Boolean {
         if (destroyed) return false
-        if (!ready) {
-            mainHandler.post { preload() }
-            return false
+        if (ready) {
+            mainHandler.post { present() }
+            return true
         }
-        mainHandler.post { present() }
-        return true
+        if (fallbackReady && !fallbackShowing && isOnline()) {
+            fallbackReady = false
+            mainHandler.post { presentFallback() }
+            return true
+        }
+        mainHandler.post { preload() }
+        return false
     }
 
     fun destroy() {
         destroyed = true
         ready = false
+        fallbackReady = false
         ad = null
         loading = false
         mainHandler.removeCallbacksAndMessages(null)
     }
 
-    private fun request() {
-        if (destroyed) {
-            loading = false
-            return
-        }
+    private fun finishLoad(token: Int) {
+        if (token != loadToken) return
+        loading = false
+        mainHandler.removeCallbacks(timeoutRunnable)
+    }
+
+    private fun request(token: Int) {
+        if (destroyed || token != loadToken || !loading) return
         try {
             InterstitialAd.load(
                 AdRequest.Builder(AD_UNIT_ID).build(),
                 object : AdLoadCallback<InterstitialAd> {
                     override fun onAdLoaded(ad: InterstitialAd) {
                         mainHandler.post {
-                            loading = false
-                            if (destroyed) return@post
+                            if (destroyed || token != loadToken) return@post
+                            finishLoad(token)
                             this@InterstitialAdManager.ad = ad
                             ready = true
                         }
                     }
 
                     override fun onAdFailedToLoad(adError: LoadAdError) {
-                        mainHandler.post { loading = false }
+                        mainHandler.post {
+                            if (destroyed || token != loadToken) return@post
+                            finishLoad(token)
+                            if (isNoFill(adError)) fallbackReady = true
+                        }
                     }
                 }
             )
         } catch (e: Exception) {
-            loading = false
+            finishLoad(token)
         }
+    }
+
+    private fun isNoFill(adError: LoadAdError): Boolean {
+        val label = adError.code.toString().uppercase().replace("_", "")
+        return label.contains("NOFILL")
     }
 
     private fun present() {
@@ -107,6 +144,22 @@ class InterstitialAdManager(private val activity: ComponentActivity) {
         }
     }
 
+    private fun presentFallback() {
+        if (destroyed || fallbackShowing || activity.isFinishing || activity.isDestroyed) return
+        fallbackShowing = true
+        onFallbackVisibility(true)
+        try {
+            FallbackAdPlayer(activity, false) {
+                fallbackShowing = false
+                onFallbackVisibility(false)
+                mainHandler.post { preload() }
+            }.show()
+        } catch (e: Exception) {
+            fallbackShowing = false
+            onFallbackVisibility(false)
+        }
+    }
+
     private fun isOnline(): Boolean {
         val manager = activity.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
             ?: return false
@@ -117,5 +170,6 @@ class InterstitialAdManager(private val activity: ComponentActivity) {
 
     companion object {
         private const val AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
+        private const val LOAD_TIMEOUT_MS = 15000L
     }
 }
