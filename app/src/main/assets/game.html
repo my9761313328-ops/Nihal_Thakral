@@ -1010,8 +1010,13 @@ let gameOverCount = 0;
 
 function handleInterstitial() {
     gameOverCount++;
-    if (gameOverCount <= INTERSTITIAL_AFTER_GAME_OVERS) return;
     if (!window.AndroidAds || !window.AndroidAds.showInterstitialAd) return;
+    if (gameOverCount <= INTERSTITIAL_AFTER_GAME_OVERS) {
+        try {
+            if (window.AndroidAds.preloadInterstitialAd) window.AndroidAds.preloadInterstitialAd();
+        } catch (err) {}
+        return;
+    }
     try {
         if (window.AndroidAds.showInterstitialAd()) gameOverCount = 0;
     } catch (err) {}
