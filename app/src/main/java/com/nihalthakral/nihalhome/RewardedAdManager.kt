@@ -6,12 +6,10 @@ import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import androidx.activity.ComponentActivity
-import com.google.android.libraries.ads.mobile.sdk.MobileAds
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback
 import com.google.android.libraries.ads.mobile.sdk.common.AdRequest
 import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError
 import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError
-import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAd
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAdEventCallback
 
@@ -63,7 +61,7 @@ class RewardedAdManager(
 
         Thread {
             try {
-                ensureInitialized()
+                AdsInitializer.ensure(activity)
                 mainHandler.post { requestAd(token) }
             } catch (e: Exception) {
                 mainHandler.post { failAttempt(token) }
@@ -181,19 +179,7 @@ class RewardedAdManager(
         return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
-    private fun ensureInitialized() {
-        synchronized(LOCK) {
-            if (initialized) return
-            MobileAds.initialize(
-                activity,
-                InitializationConfig.Builder(APP_ID).build()
-            ) {}
-            initialized = true
-        }
-    }
-
     companion object {
-        private const val APP_ID = "ca-app-pub-5939817111566865~6465125511"
         private const val AD_UNIT_ID = "ca-app-pub-5939817111566865/1834673417"
         private const val LOAD_TIMEOUT_MS = 15000L
         private const val COOLDOWN_MS = 65000L
@@ -202,8 +188,5 @@ class RewardedAdManager(
         const val REASON_COOLDOWN = "cooldown"
         const val REASON_DISMISSED = "dismissed"
         const val REASON_FAILED = "failed"
-
-        private val LOCK = Any()
-        private var initialized = false
     }
 }
