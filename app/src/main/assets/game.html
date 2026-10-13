@@ -198,6 +198,22 @@
         .btn-continue.hidden + .btn-restart {
             margin-top: 24px;
         }
+        .btn-restart.ad-loading:disabled {
+            opacity: 0.9;
+        }
+        .btn-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            border: 3px solid currentColor;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: btnSpin 0.8s linear infinite;
+        }
+        @keyframes btnSpin {
+            to { transform: rotate(360deg); }
+        }
         #countdown {
             position: absolute;
             inset: 0;
@@ -1002,25 +1018,13 @@ function triggerGameOver() {
 
     document.body.style.backgroundColor = GAMEOVER_AMBIENT_COLOR;
 
-    handleInterstitial();
+    gameOverCount++;
 }
 
 const INTERSTITIAL_AFTER_GAME_OVERS = 4;
 let gameOverCount = 0;
-
-function handleInterstitial() {
-    gameOverCount++;
-    if (!window.AndroidAds || !window.AndroidAds.showInterstitialAd) return;
-    if (gameOverCount <= INTERSTITIAL_AFTER_GAME_OVERS) {
-        try {
-            if (window.AndroidAds.preloadInterstitialAd) window.AndroidAds.preloadInterstitialAd();
-        } catch (err) {}
-        return;
-    }
-    try {
-        if (window.AndroidAds.showInterstitialAd()) gameOverCount = 0;
-    } catch (err) {}
-}
+let interstitialPending = false;
+let restartLabelBackup = '';
 
 function startGame() {
     if (gameState === 'START') {
@@ -1048,13 +1052,60 @@ document.addEventListener('pointerdown', (e) => {
     onInput(e);
 }, { passive: true });
 
-restartBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (adPending) return;
+function restartGame() {
     gameOverlay.classList.remove('active');
     document.body.style.backgroundColor = theme.skyTop;
     init();
     gameState = 'PLAYING';
+}
+
+function setInterstitialBusy() {
+    interstitialPending = true;
+    restartLabelBackup = restartBtn.textContent;
+    restartBtn.style.minWidth = restartBtn.offsetWidth + 'px';
+    restartBtn.classList.add('ad-loading');
+    restartBtn.innerHTML = '<span class="btn-spinner"></span>';
+    restartBtn.disabled = true;
+    continueBtn.disabled = true;
+}
+
+function clearInterstitialBusy() {
+    interstitialPending = false;
+    restartBtn.classList.remove('ad-loading');
+    restartBtn.style.minWidth = '';
+    restartBtn.textContent = restartLabelBackup;
+    restartBtn.disabled = false;
+    continueBtn.disabled = false;
+}
+
+function requestInterstitialAd() {
+    setInterstitialBusy();
+    try {
+        window.AndroidAds.showInterstitialAd();
+    } catch (err) {
+        clearInterstitialBusy();
+        if (gameState === 'GAMEOVER') restartGame();
+    }
+}
+
+window.onInterstitialAdResult = function (result) {
+    if (!interstitialPending) return;
+    clearInterstitialBusy();
+    if (result === 'shown') {
+        gameOverCount = 0;
+    } else if (gameState === 'GAMEOVER') {
+        restartGame();
+    }
+};
+
+restartBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (adPending || interstitialPending) return;
+    if (gameOverCount >= INTERSTITIAL_AFTER_GAME_OVERS && window.AndroidAds && window.AndroidAds.showInterstitialAd) {
+        requestInterstitialAd();
+        return;
+    }
+    restartGame();
 });
 
 const CONTINUE_LABEL = 'Continue - 🎬 Watch Ad';
