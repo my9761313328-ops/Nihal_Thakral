@@ -28,6 +28,7 @@ import kotlin.math.min
 
 class FallbackAdPlayer(
     private val activity: ComponentActivity,
+    private val showReward: Boolean = true,
     private val onClosed: (Boolean) -> Unit
 ) {
 
@@ -130,19 +131,21 @@ class FallbackAdPlayer(
             background = rounded(Color.rgb(251, 188, 4), 4)
         }
 
-        infoGroup.addView(
-            rewardText,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+        if (showReward) {
+            infoGroup.addView(
+                rewardText,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                )
             )
-        )
+        }
         infoGroup.addView(
             adBadge,
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { marginStart = dp(8) }
+            ).apply { marginStart = if (showReward) dp(8) else 0 }
         )
         bar.addView(
             infoGroup,
@@ -206,6 +209,10 @@ class FallbackAdPlayer(
     private fun updateReward() {
         val total = video.duration
         if (total <= 0) return
+        if (!showReward) {
+            infoGroup.visibility = View.VISIBLE
+            return
+        }
         val left = ceil((total - video.currentPosition) / 1000.0).toInt().coerceAtLeast(0)
         rewardText.text = "Reward in $left"
         infoGroup.visibility = View.VISIBLE
@@ -215,7 +222,7 @@ class FallbackAdPlayer(
         if (finished || completed) return
         completed = true
         handler.removeCallbacks(ticker)
-        rewardText.text = "Reward granted"
+        if (showReward) rewardText.text = "Reward granted"
         infoGroup.visibility = View.VISIBLE
         closeButton.alpha = 0f
         closeButton.visibility = View.VISIBLE
