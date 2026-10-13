@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var rewardedAds: RewardedAdManager
     private lateinit var interstitialAds: InterstitialAdManager
     private var pendingAdResult: String? = null
+    private var pendingInterstitialResult: String? = null
     private var fallbackAdShowing = false
 
     @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
@@ -85,11 +86,14 @@ class MainActivity : ComponentActivity() {
                 if (showing) webView.onPause() else webView.onResume()
             }
         })
-        interstitialAds = InterstitialAdManager(this) { showing ->
-            fallbackAdShowing = showing
-            if (showing) webView.onPause() else webView.onResume()
-        }
-        interstitialAds.preload()
+        interstitialAds = InterstitialAdManager(
+            this,
+            { showing ->
+                fallbackAdShowing = showing
+                if (showing) webView.onPause() else webView.onResume()
+            },
+            { shown -> postInterstitialResult(if (shown) RESULT_SHOWN else RESULT_FAILED) }
+        )
         webView.addJavascriptInterface(AdBridge(), "AndroidAds")
 
         if (savedInstanceState == null) {
@@ -142,13 +146,30 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun postInterstitialResult(result: String) {
+        runOnUiThread {
+            pendingInterstitialResult = result
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) flushAdResult()
+        }
+    }
+
     private fun flushAdResult() {
-        val result = pendingAdResult ?: return
-        pendingAdResult = null
-        webView.evaluateJavascript(
-            "window.onRewardedAdResult && window.onRewardedAdResult('$result')",
-            null
-        )
+        val result = pendingAdResult
+        if (result != null) {
+            pendingAdResult = null
+            webView.evaluateJavascript(
+                "window.onRewardedAdResult && window.onRewardedAdResult('$result')",
+                null
+            )
+        }
+        val interstitialResult = pendingInterstitialResult
+        if (interstitialResult != null) {
+            pendingInterstitialResult = null
+            webView.evaluateJavascript(
+                "window.onInterstitialAdResult && window.onInterstitialAdResult('$interstitialResult')",
+                null
+            )
+        }
     }
 
     private inner class AdBridge {
@@ -158,12 +179,9 @@ class MainActivity : ComponentActivity() {
         }
 
         @JavascriptInterface
-        fun preloadInterstitialAd() {
-            runOnUiThread { interstitialAds.preload() }
+        fun showInterstitialAd() {
+            runOnUiThread { interstitialAds.loadAndShow() }
         }
-
-        @JavascriptInterface
-        fun showInterstitialAd(): Boolean = interstitialAds.requestShow()
 
         @JavascriptInterface
         fun getCooldownMs(): Long = rewardedAds.remainingCooldownMs()
@@ -172,5 +190,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         private const val GAME_URL = "file:///android_asset/game.html"
         private const val RESULT_EARNED = "earned"
+        private const val RESULT_SHOWN = "shown"
+        private const val RESULT_FAILED = "failed"
     }
 }
