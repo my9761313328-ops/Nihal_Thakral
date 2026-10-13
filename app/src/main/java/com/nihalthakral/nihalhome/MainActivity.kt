@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -15,11 +17,13 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
+import java.io.ByteArrayInputStream
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var webView: WebView
     private lateinit var rewardedAds: RewardedAdManager
+    private lateinit var interstitialAds: InterstitialAdManager
     private var pendingAdResult: String? = null
     private var fallbackAdShowing = false
 
@@ -54,7 +58,23 @@ class MainActivity : ComponentActivity() {
             displayZoomControls = false
         }
 
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView,
+                request: WebResourceRequest
+            ): Boolean = !request.url.toString().startsWith(GAME_URL)
+
+            override fun shouldInterceptRequest(
+                view: WebView,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                val scheme = request.url.scheme
+                if (scheme == "http" || scheme == "https") {
+                    return WebResourceResponse("text/plain", "utf-8", ByteArrayInputStream(ByteArray(0)))
+                }
+                return null
+            }
+        }
         webView.webChromeClient = WebChromeClient()
 
         rewardedAds = RewardedAdManager(this, object : RewardedAdManager.Listener {
@@ -65,6 +85,8 @@ class MainActivity : ComponentActivity() {
                 if (showing) webView.onPause() else webView.onResume()
             }
         })
+        interstitialAds = InterstitialAdManager(this)
+        interstitialAds.preload()
         webView.addJavascriptInterface(AdBridge(), "AndroidAds")
 
         if (savedInstanceState == null) {
@@ -96,6 +118,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        interstitialAds.destroy()
         (webView.parent as? ViewGroup)?.removeView(webView)
         webView.stopLoading()
         webView.destroy()
@@ -130,6 +153,9 @@ class MainActivity : ComponentActivity() {
         fun showRewardedAd() {
             runOnUiThread { rewardedAds.loadAndShow() }
         }
+
+        @JavascriptInterface
+        fun showInterstitialAd(): Boolean = interstitialAds.requestShow()
 
         @JavascriptInterface
         fun getCooldownMs(): Long = rewardedAds.remainingCooldownMs()
