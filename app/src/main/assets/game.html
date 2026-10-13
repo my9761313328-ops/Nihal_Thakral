@@ -201,19 +201,6 @@
         .btn-restart.ad-loading:disabled {
             opacity: 0.9;
         }
-        .btn-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            vertical-align: middle;
-            border: 3px solid currentColor;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: btnSpin 0.8s linear infinite;
-        }
-        @keyframes btnSpin {
-            to { transform: rotate(360deg); }
-        }
         #countdown {
             position: absolute;
             inset: 0;
@@ -1064,7 +1051,7 @@ function setInterstitialBusy() {
     restartLabelBackup = restartBtn.textContent;
     restartBtn.style.minWidth = restartBtn.offsetWidth + 'px';
     restartBtn.classList.add('ad-loading');
-    restartBtn.innerHTML = '<span class="btn-spinner"></span>';
+    restartBtn.textContent = 'Loading Ad...';
     restartBtn.disabled = true;
     continueBtn.disabled = true;
 }
