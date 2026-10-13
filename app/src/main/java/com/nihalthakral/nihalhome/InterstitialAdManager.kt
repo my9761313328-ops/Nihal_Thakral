@@ -154,6 +154,6 @@ class InterstitialAdManager(
 
     companion object {
         private const val AD_UNIT_ID = "ca-app-pub-3940256099942544/1033173712"
-        private const val LOAD_TIMEOUT_MS = 10000L
+        private const val LOAD_TIMEOUT_MS = 15000L
     }
 }
