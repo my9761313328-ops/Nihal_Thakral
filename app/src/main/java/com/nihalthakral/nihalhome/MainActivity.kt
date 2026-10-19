@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
                 android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         setContentView(R.layout.activity_main)
+        window.setBackgroundDrawable(null)
         hideSystemBars()
 
         webView = findViewById(R.id.gameWebView)
@@ -51,6 +52,11 @@ class MainActivity : ComponentActivity() {
         webView.isLongClickable = false
         webView.isHapticFeedbackEnabled = false
         webView.setOnLongClickListener { true }
+        (webView.parent as? View)?.background = null
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            webView.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+        }
 
         webView.settings.apply {
             javaScriptEnabled = true
@@ -58,6 +64,7 @@ class MainActivity : ComponentActivity() {
             mediaPlaybackRequiresUserGesture = false
             allowFileAccess = true
             allowContentAccess = false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) safeBrowsingEnabled = false
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
@@ -162,6 +169,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        switcher.destroy()
         interstitialAds.destroy()
         (webView.parent as? ViewGroup)?.removeView(webView)
         webView.stopLoading()
