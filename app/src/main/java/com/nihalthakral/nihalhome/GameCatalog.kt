@@ -18,15 +18,15 @@ object GameCatalog {
         GameInfo(
             title = "Block Hop",
             tagline = "Tap to jump and keep hopping",
-            emoji = "🧱",
+            emoji = "\uD83C\uDFAE",
             asset = "game.html",
             colorStart = Color.parseColor("#1F8A83"),
             colorEnd = Color.parseColor("#2B4541")
         ),
         GameInfo(
-            title = "Neon Slip",
-            tagline = "Hold, slide and dodge the neon traps",
-            emoji = "⚡",
+            title = "Gravity and Ball",
+            tagline = "Try to Avoid Traps",
+            emoji = "\uD83C\uDFAE",
             asset = "neon_slip.html",
             colorStart = Color.parseColor("#3B2FB8"),
             colorEnd = Color.parseColor("#C2306A")
