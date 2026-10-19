@@ -13,6 +13,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -27,6 +28,9 @@ class MainActivity : ComponentActivity() {
     private var pendingAdResult: String? = null
     private var pendingInterstitialResult: String? = null
     private var fallbackAdShowing = false
+    private var sheetOpen = false
+    private var currentGame = GameCatalog.latestIndex
+    private lateinit var switcher: GameSwitcher
 
     @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,7 +67,11 @@ class MainActivity : ComponentActivity() {
             override fun shouldOverrideUrlLoading(
                 view: WebView,
                 request: WebResourceRequest
-            ): Boolean = !request.url.toString().startsWith(GAME_URL)
+            ): Boolean = !request.url.toString().startsWith(ASSET_PREFIX)
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                view.animate().alpha(1f).setDuration(220).start()
+            }
 
             override fun shouldInterceptRequest(
                 view: WebView,
@@ -96,21 +104,50 @@ class MainActivity : ComponentActivity() {
         )
         webView.addJavascriptInterface(AdBridge(), "AndroidAds")
 
+        val backCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                switcher.close()
+            }
+        }
+        onBackPressedDispatcher.addCallback(this, backCallback)
+
+        switcher = GameSwitcher(
+            this,
+            GameCatalog.games,
+            { index -> switchTo(index) },
+            { open ->
+                sheetOpen = open
+                backCallback.isEnabled = open
+                if (open) webView.onPause() else if (!fallbackAdShowing) webView.onResume()
+            }
+        )
+        switcher.attach(findViewById(android.R.id.content))
+
         if (savedInstanceState == null) {
-            webView.loadUrl(GAME_URL)
+            webView.loadUrl(GameCatalog.games[currentGame].url)
         } else {
+            currentGame = savedInstanceState.getInt(KEY_GAME, GameCatalog.latestIndex)
             webView.restoreState(savedInstanceState)
         }
+        switcher.setCurrent(currentGame)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
+        outState.putInt(KEY_GAME, currentGame)
         webView.saveState(outState)
+    }
+
+    private fun switchTo(index: Int) {
+        if (index == currentGame) return
+        currentGame = index
+        val url = GameCatalog.games[index].url
+        webView.animate().alpha(0f).setDuration(140).withEndAction { webView.loadUrl(url) }.start()
     }
 
     override fun onResume() {
         super.onResume()
-        if (!fallbackAdShowing) webView.onResume()
+        if (!fallbackAdShowing && !sheetOpen) webView.onResume()
         flushAdResult()
     }
 
@@ -188,7 +225,8 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val GAME_URL = "file:///android_asset/game.html"
+        private const val ASSET_PREFIX = "file:///android_asset/"
+        private const val KEY_GAME = "current_game"
         private const val RESULT_EARNED = "earned"
         private const val RESULT_SHOWN = "shown"
         private const val RESULT_FAILED = "failed"
