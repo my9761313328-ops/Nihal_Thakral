@@ -36,7 +36,28 @@ class GameSwitcher(
     private val sheet = LinearLayout(activity)
     private val list = LinearLayout(activity)
     private val handle = TextView(activity)
-    private val dimTask = Runnable { handle.animate().alpha(0.35f).setStartDelay(0).setDuration(400).setInterpolator(DecelerateInterpolator()).start() }
+    private val pulseTask = object : Runnable {
+        override fun run() {
+            if (isOpen) return
+            handle.animate()
+                .scaleX(1.2f)
+                .scaleY(1.2f)
+                .setStartDelay(0)
+                .setDuration(240)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    handle.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setStartDelay(0)
+                        .setDuration(260)
+                        .setInterpolator(DecelerateInterpolator())
+                        .start()
+                }
+                .start()
+            handler.postDelayed(this, 2600)
+        }
+    }
 
     var currentIndex: Int = 0
         private set
@@ -65,7 +86,13 @@ class GameSwitcher(
             .setDuration(450)
             .setInterpolator(OvershootInterpolator(1.4f))
             .start()
-        handler.postDelayed(dimTask, 4200)
+        handler.postDelayed(pulseTask, 1800)
+    }
+
+    fun destroy() {
+        handler.removeCallbacksAndMessages(null)
+        handle.animate().cancel()
+        sheet.animate().cancel()
     }
 
     fun setCurrent(index: Int) {
@@ -75,7 +102,7 @@ class GameSwitcher(
     fun open() {
         if (isOpen) return
         isOpen = true
-        handler.removeCallbacks(dimTask)
+        handler.removeCallbacks(pulseTask)
         handle.animate().cancel()
         handle.visibility = View.GONE
         populate()
@@ -104,8 +131,10 @@ class GameSwitcher(
             .start()
         handle.visibility = View.VISIBLE
         handle.alpha = 1f
-        handler.removeCallbacks(dimTask)
-        handler.postDelayed(dimTask, 2500)
+        handle.scaleX = 1f
+        handle.scaleY = 1f
+        handler.removeCallbacks(pulseTask)
+        handler.postDelayed(pulseTask, 1200)
         onToggle(false)
     }
 
@@ -176,10 +205,12 @@ class GameSwitcher(
         handle.gravity = Gravity.CENTER
         handle.contentDescription = "Switch game"
         val r = dp(28).toFloat()
+        handle.pivotX = 0f
+        handle.elevation = dp(8).toFloat()
         handle.background = GradientDrawable().apply {
-            setColor(Color.parseColor("#B30F1230"))
+            setColor(Color.parseColor("#F20F1230"))
             cornerRadii = floatArrayOf(0f, 0f, r, r, r, r, 0f, 0f)
-            setStroke(dp(1), Color.parseColor("#667DD3FC"))
+            setStroke(dp(2), Color.parseColor("#FBBF24"))
         }
         handle.setOnClickListener {
             it.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
