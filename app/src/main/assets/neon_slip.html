@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gravity and Ball</title>
+<title>Gendistan</title>
 <style>
 :root{--bg:#0f1230;--fg:#e8f6ff;--accent:#7dd3fc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -31,6 +31,8 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 #ov h1{margin:0;font-size:38px;text-shadow:0 0 18px rgba(255,107,138,.6)}
 #ov p{margin:0 0 14px;opacity:.8}
 #ov button{font:inherit;font-weight:700;font-size:18px;padding:14px 38px;border:0;border-radius:30px;background:var(--accent);color:#021218;cursor:pointer;box-shadow:0 0 22px var(--accent)}
+#ov button:disabled{opacity:.5;cursor:default}
+#ov button.ad-loading:disabled{opacity:.9}
 #mc{position:relative;width:130px;height:150px;margin-bottom:8px}
 #mc .sh{position:absolute;left:50%;bottom:0;width:76px;height:12px;margin-left:-38px;border-radius:50%;background:rgba(0,0,0,.5);filter:blur(3px)}
 #mc .bd{position:absolute;left:50%;bottom:14px;width:88px;height:88px;margin-left:-44px;border-radius:50%;transform-origin:50% 100%;background:radial-gradient(circle at 32% 28%,#fff 0,#c9eeff 16%,#7dd3fc 48%,#2b7fb8 84%,#1b4d78 100%);box-shadow:inset -9px -11px 20px rgba(8,26,64,.55),0 0 30px rgba(125,211,252,.4)}
@@ -437,6 +439,7 @@ $('ot').textContent=rec?'High Score':'Game Over';
 $('mc').className=rec?'win':'mock';
 $('pop').className='';
 $('od').textContent='Score '+sc+' · Best '+best;
+gameOverCount++;
 setTimeout(()=>{$('ov').style.display='flex'},650);
 setTimeout(rec?sfxWin:sfxLose,rec?500:450);
 }
@@ -720,7 +723,51 @@ g.restore();
 
 reset();
 requestAnimationFrame(frame);
-$('ob').onclick=reset;
+const INTERSTITIAL_AFTER_GAME_OVERS=4;
+let gameOverCount=0,interstitialPending=false,obLabelBackup='';
+const obBtn=$('ob');
+function setInterstitialBusy(){
+interstitialPending=true;
+obLabelBackup=obBtn.textContent;
+obBtn.style.minWidth=obBtn.offsetWidth+'px';
+obBtn.classList.add('ad-loading');
+obBtn.textContent='Loading Ad...';
+obBtn.disabled=true;
+}
+function clearInterstitialBusy(){
+interstitialPending=false;
+obBtn.classList.remove('ad-loading');
+obBtn.style.minWidth='';
+obBtn.textContent=obLabelBackup;
+obBtn.disabled=false;
+}
+function requestInterstitialAd(){
+setInterstitialBusy();
+try{
+window.AndroidAds.showInterstitialAd();
+}catch(err){
+clearInterstitialBusy();
+if(state==='dead')reset();
+}
+}
+window.onInterstitialAdResult=function(result){
+if(!interstitialPending)return;
+clearInterstitialBusy();
+if(result==='shown'){
+gameOverCount=0;
+}else if(state==='dead'){
+reset();
+}
+};
+obBtn.onclick=function(e){
+e.stopPropagation();
+if(interstitialPending)return;
+if(gameOverCount>=INTERSTITIAL_AFTER_GAME_OVERS&&window.AndroidAds&&window.AndroidAds.showInterstitialAd){
+requestInterstitialAd();
+return;
+}
+reset();
+};
 </script>
 </body>
 </html>
