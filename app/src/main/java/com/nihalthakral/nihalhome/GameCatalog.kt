@@ -24,8 +24,8 @@ object GameCatalog {
             colorEnd = Color.parseColor("#2B4541")
         ),
         GameInfo(
-            title = "Gravity and Ball",
-            tagline = "Try to Avoid Traps",
+            title = "Gendistan",
+            tagline = "Ek alag hi desh, jahan ball ki jaan khatre mein hai",
             emoji = "\uD83C\uDFAE",
             asset = "neon_slip.html",
             colorStart = Color.parseColor("#3B2FB8"),
